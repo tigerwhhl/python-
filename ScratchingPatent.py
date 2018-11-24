@@ -144,6 +144,7 @@ def back_to_main_page(browser):
     browser.execute_script(js)
 
 
+# ==========================登陆======================== #
 def download_login(browser):
     back_to_main_page(browser)
     try:
@@ -166,6 +167,7 @@ def download_login(browser):
         return judge_login(browser)
 
 
+# ==========================点击搜索======================== #
 def download_search(browser, key):
     back_to_main_page(browser)
     if judge_login(browser): # 登陆成功
@@ -176,6 +178,7 @@ def download_search(browser, key):
         return True
 
 
+# ==========================点击详情======================== #
 def download_click_detail(browser, key):
     # =====================跳转到搜索结果页面======================
     browser.switch_to.window(browser.window_handles[1])
@@ -189,21 +192,23 @@ def download_click_detail(browser, key):
     # -------waiting for success loading result--------
     # 该元素为 搜索结果 加载完毕判断标志
     try:
-        WebDriverWait(browser, 20, 1, ignored_exceptions=None).until(
+        element = WebDriverWait(browser, 20, 1, ignored_exceptions=None).until(
             EC.presence_of_element_located(
                 (By.XPATH, '//*[@id="resultMode"]/div/div[1]/ul/li[1]/div/div[3]/div/a[1]'))
         )
         print('加载完成')
-        js = "var q=document.documentElement.scrollTop=800"
-        browser.execute_script(js)
+        # js = "var q=document.documentElement.scrollTop=400" # 这一行的参数根据电脑屏幕大小自行调整
+        # browser.execute_script(js)
+        time.sleep(1)
+        ActionChains(browser).move_to_element(element).click().perform()  # 鼠标滚动至目标按钮并点击
         time.sleep(2)
-        browser.find_element_by_xpath('//*[@id="resultMode"]/div/div[1]/ul/li[2]/div/div[3]/div/a[1]').click()
-        # ActionChains(browser).move_to_element(element).click().perform()  # 鼠标滚动至目标按钮并点击
+        # browser.find_element_by_xpath('//*[@id="resultMode"]/div/div[1]/ul/li[2]/div/div[3]/div/a[1]').click()
     except selenium.common.exceptions.TimeoutException:
         print('TimeoutException')
         return False
 
 
+# ==========================点击下载======================== #
 def download_click_rar(browser,key):
     for handle in browser.window_handles:  # 始终获得当前最后的窗口
         browser.switch_to.window(handle)
@@ -383,12 +388,21 @@ if __name__ == '__main__':
     data = from_excel(file_path)
     count = 0
     load_fail_list = []
+    # # =====================设置默认下载路径=========================
+    # options = webdriver.ChromeOptions()
+    # prefs = {'profile.default_content_settings.popups': 0, 'download.default_directory': 'd:\\'}
+    # options.add_experimental_option('prefs', prefs)
     browser = webdriver.Chrome(
         executable_path=webdriver_path)  # 注意改你安装插件的路径
     browser.get(targeturl)
     download_login(browser) # 登陆
-    # download_search(browser,'CN201120048091')
-    for num in range(50, 100):
+    # ====================测试代码=======================
+    # download_search(browser,'CN201610477192')
+    # download_click_detail(browser,'CN201610477192')
+    # download_search(browser, 'CN201610787311')
+    # download_click_detail(browser, 'CN201610787311')
+    # ====================测试代码=======================
+    for num in range(236, 250):
         cnid = data[num][0]
         key = change_str(str(cnid))
         print('==================================')
@@ -397,6 +411,10 @@ if __name__ == '__main__':
             download_search(browser, key) # 搜索
             download_click_detail(browser, key) # 加载详情页面
             if not download_click_rar(browser, key): # 点击下载按钮
+                browser.quit()
+                browser = webdriver.Chrome(executable_path=webdriver_path)
+                browser.get(targeturl)
+                download_login(browser)  # 再次登陆
                 load_fail_list.append(num)
                 write_data_to_file('fail_list.txt', num)
         except Exception:
@@ -409,8 +427,7 @@ if __name__ == '__main__':
             write_data_to_file('fail_list.txt', num)
             continue
         finally:
-            print('==================================')
-            time.sleep(1)
+            time.sleep(2)
     browser.quit()
     print(load_fail_list)
     text_save('load_fail_list.txt', load_fail_list)
