@@ -163,19 +163,20 @@ def download_login(browser):
         browser.find_element_by_xpath('//*[@id="j_validation_code"]').send_keys(str(code))
         browser.find_element_by_xpath('//*[@id="globleBody"]/div[2]/div/div[1]/div[3]/div[2]/div[2]/div/a[1]').click()
         return judge_login(browser)
-    except selenium.common.exceptions.TimeoutException:
+    except selenium.common.exceptions.TimeoutException: # 等待超时，说明已经登陆，返回判断是否登陆的布尔值
         return judge_login(browser)
 
 
 # ==========================点击搜索======================== #
 def download_search(browser, key):
     back_to_main_page(browser)
-    if judge_login(browser): # 登陆成功
-        search_key = browser.find_element_by_xpath('//*[@id="quickInput"]')
-        search_key.clear()
-        search_key.send_keys(key)
-        browser.find_element_by_xpath('//*[@id="quickSearch"]').click()
-        return True
+    if not judge_login(browser):  # 登陆失败
+        download_login(browser)
+    search_key = browser.find_element_by_xpath('//*[@id="quickInput"]')
+    search_key.clear()
+    search_key.send_keys(key)
+    browser.find_element_by_xpath('//*[@id="quickSearch"]').click()
+    return True
 
 
 # ==========================点击详情======================== #
@@ -184,11 +185,11 @@ def download_click_detail(browser, key):
     browser.switch_to.window(browser.window_handles[1])
     time.sleep(1)
     # =============当前网页并非搜索结果页面===============
-    while str(browser.title)!= '常规检索':
+    while str(browser.title) != '常规检索':
         print('搜索失败')
-        download_login(browser) # 重新登陆
-        download_search(browser, key) # 重新搜索
-        browser.switch_to.window(browser.window_handles[1]) # 跳转到搜索结果页面
+        download_login(browser)  # 重新登陆
+        download_search(browser, key)  # 重新搜索
+        browser.switch_to.window(browser.window_handles[1])  # 跳转到搜索结果页面
     # -------waiting for success loading result--------
     # 该元素为 搜索结果 加载完毕判断标志
     try:
@@ -201,25 +202,36 @@ def download_click_detail(browser, key):
         # browser.execute_script(js)
         time.sleep(1)
         ActionChains(browser).move_to_element(element).click().perform()  # 鼠标滚动至目标按钮并点击
-        time.sleep(2)
+        # time.sleep(2)
         # browser.find_element_by_xpath('//*[@id="resultMode"]/div/div[1]/ul/li[2]/div/div[3]/div/a[1]').click()
+        return True
     except selenium.common.exceptions.TimeoutException:
         print('TimeoutException')
         return False
 
 
 # ==========================点击下载======================== #
-def download_click_rar(browser,key):
-    for handle in browser.window_handles:  # 始终获得当前最后的窗口
-        browser.switch_to.window(handle)
-        time.sleep(1)
+def download_click_rar(browser, key):
+    # ==================打不开详览页面====================
+    mis_count = 0
+    while len(browser.window_handles) < 3:
+        mis_count += 1
+        if mis_count > 5:
+            return False
+        print('第' + str(mis_count) + '次点击详情')
+        download_login(browser)  # 重新登陆
+        download_search(browser, key)  # 重新搜索
+        download_click_detail(browser, key)  # 重新点击详览
+    # =====================================================
+    browser.switch_to.window(browser.window_handles[2])
+    time.sleep(3)
     # =============当前网页并非详情浏览页面===============
     while str(browser.title) != '文献浏览':
         print('加载失败')
         browser.close()
         download_login(browser)  # 重新登陆
         download_search(browser, key)  # 重新搜索
-        download_click_detail(browser, key) # 重新点击详览
+        download_click_detail(browser, key)  # 重新点击详览
         browser.switch_to.window(browser.window_handles[2])  # 跳转到文献浏览页面
     # -------waiting for success loading details--------
     # 该元素为 详情页面 加载完毕判断标志
@@ -380,7 +392,7 @@ def text_save(filename, data):  # filename为写入CSV文件的路径，data为�
 
 def write_data_to_file(filename, data):
     file = open(filename, 'a')
-    file.write(str(data)+'\n')
+    file.write(str(data) + '\n')
     file.close()
 
 
@@ -395,22 +407,26 @@ if __name__ == '__main__':
     browser = webdriver.Chrome(
         executable_path=webdriver_path)  # 注意改你安装插件的路径
     browser.get(targeturl)
-    download_login(browser) # 登陆
+    download_login(browser)  # 登陆
     # ====================测试代码=======================
     # download_search(browser,'CN201610477192')
     # download_click_detail(browser,'CN201610477192')
     # download_search(browser, 'CN201610787311')
     # download_click_detail(browser, 'CN201610787311')
     # ====================测试代码=======================
-    for num in range(236, 250):
+    for num in range(248, 250):
         cnid = data[num][0]
         key = change_str(str(cnid))
         print('==================================')
         print('dowanloading: ' + str(num))
         try:
-            download_search(browser, key) # 搜索
-            download_click_detail(browser, key) # 加载详情页面
-            if not download_click_rar(browser, key): # 点击下载按钮
+            if download_search(browser, key):  # 搜索
+                while not download_click_detail(browser, key):  # 加载详情页面，若加载失败重新搜索
+                    download_login(browser)
+                    download_search(browser,key)
+                if download_click_rar(browser, key):  # 点击下载按钮
+                    print('SUCCESS')
+            else:
                 browser.quit()
                 browser = webdriver.Chrome(executable_path=webdriver_path)
                 browser.get(targeturl)
