@@ -36,6 +36,10 @@ filedir = r'd:\\testData'  # 解压后放入的目录
 # ==================================================================================
 
 
+class GetOutOfLoop(Exception):
+    pass
+
+
 # ============将excel文件信息导出datalist=============
 def from_excel(file):
     wb = xlrd.open_workbook(file)
@@ -163,7 +167,7 @@ def download_login(browser):
         browser.find_element_by_xpath('//*[@id="j_validation_code"]').send_keys(str(code))
         browser.find_element_by_xpath('//*[@id="globleBody"]/div[2]/div/div[1]/div[3]/div[2]/div[2]/div/a[1]').click()
         return judge_login(browser)
-    except selenium.common.exceptions.TimeoutException: # 等待超时，说明已经登陆，返回判断是否登陆的布尔值
+    except selenium.common.exceptions.TimeoutException:  # 等待超时，说明已经登陆，返回判断是否登陆的布尔值
         return judge_login(browser)
 
 
@@ -180,6 +184,7 @@ def download_search(browser, key):
 
 
 # ==========================点击详情======================== #
+# 出现三种情况：0：加载成功，点击进入下一页面；1：反应太慢，加载失败；2：搜索不到结果
 def download_click_detail(browser, key):
     # =====================跳转到搜索结果页面======================
     browser.switch_to.window(browser.window_handles[1])
@@ -193,21 +198,35 @@ def download_click_detail(browser, key):
     # -------waiting for success loading result--------
     # 该元素为 搜索结果 加载完毕判断标志
     try:
-        element = WebDriverWait(browser, 20, 1, ignored_exceptions=None).until(
+        element = WebDriverWait(browser, 10, 1, ignored_exceptions=None).until(
             EC.presence_of_element_located(
                 (By.XPATH, '//*[@id="resultMode"]/div/div[1]/ul/li[1]/div/div[3]/div/a[1]'))
         )
         print('加载完成')
         # js = "var q=document.documentElement.scrollTop=400" # 这一行的参数根据电脑屏幕大小自行调整
         # browser.execute_script(js)
-        time.sleep(1)
-        ActionChains(browser).move_to_element(element).click().perform()  # 鼠标滚动至目标按钮并点击
-        # time.sleep(2)
+        time.sleep(2)
+        # 方法一
+        # ActionChains(browser).move_to_element(element).click(element).perform()  # 鼠标滚动至目标按钮并点击
+        # 方法二
+        js = "document.getElementsByClassName('btn btn-operation')[0].click()"  # 找到详览这个元素
+        browser.execute_script(js)
+        time.sleep(2)
         # browser.find_element_by_xpath('//*[@id="resultMode"]/div/div[1]/ul/li[2]/div/div[3]/div/a[1]').click()
-        return True
+        return 0  # 成功
     except selenium.common.exceptions.TimeoutException:
         print('TimeoutException')
-        return False
+        # =========================判断是否有搜索结果======================
+        try:
+            WebDriverWait(browser, 1).until(
+                EC.presence_of_element_located(
+                    (By.XPATH, '//*[@id="search_result_former"]/div[4]/div')))
+            # no_result_js = "return document.getElementsByClassName('no-result-wrapper').length"
+            # no_result = browser.execute_script
+            # print(no_result)
+            return 2
+        except selenium.common.exceptions.TimeoutException:
+            return 1  # 加载失败，可能是响应时间过长
 
 
 # ==========================点击下载======================== #
@@ -255,7 +274,9 @@ def download_click_rar(browser, key):
     time.sleep(1)
     b[1].send_keys(str(download_code))
     # ---------点击下载按钮----------
-    browser.find_element_by_xpath('/html/body/div[7]/div/table/tbody/tr[3]/td/div[2]/button[2]').click()
+    # browser.find_element_by_xpath('/html/body/div[7]/div/table/tbody/tr[3]/td/div[2]/button[2]').click()
+    js = "document.getElementsByClassName('ui-dialog-autofocus')[0].click()"
+    browser.execute_script(js)
     time.sleep(5)
     browser.switch_to.window(browser.window_handles[2])
     browser.close()
@@ -410,20 +431,27 @@ if __name__ == '__main__':
     download_login(browser)  # 登陆
     # ====================测试代码=======================
     # download_search(browser,'CN201610477192')
-    # download_click_detail(browser,'CN201610477192')
-    # download_search(browser, 'CN201610787311')
-    # download_click_detail(browser, 'CN201610787311')
+    # print(download_click_detail(browser,'CN201610477192'))
+    # download_search(browser, 'CN201621287118')
+    # print(download_click_detail(browser, 'CN201621287118'))
     # ====================测试代码=======================
-    for num in range(248, 250):
+    for num in range(683, 700):
         cnid = data[num][0]
         key = change_str(str(cnid))
         print('==================================')
         print('dowanloading: ' + str(num))
         try:
             if download_search(browser, key):  # 搜索
-                while not download_click_detail(browser, key):  # 加载详情页面，若加载失败重新搜索
-                    download_login(browser)
-                    download_search(browser,key)
+                while True:  # 加载详情页面，若加载失败重新搜索
+                    search_result = download_click_detail(browser, key)
+                    if search_result == 0: # 搜索成功，跳出循环
+                        break
+                    elif search_result == 1: # 加载时间过长，重新加载
+                        download_login(browser)
+                        download_search(browser,key)
+                    else: # 搜索结果为空，标记对应结果，并跳出外层循环
+                        write_data_to_file('no_result_list.txt', num)
+                        raise GetOutOfLoop() # 抛出自定义的跳出循环异常
                 if download_click_rar(browser, key):  # 点击下载按钮
                     print('SUCCESS')
             else:
@@ -433,6 +461,9 @@ if __name__ == '__main__':
                 download_login(browser)  # 再次登陆
                 load_fail_list.append(num)
                 write_data_to_file('fail_list.txt', num)
+        except GetOutOfLoop:
+            print('搜索结果为空')
+            continue
         except Exception:
             print(Exception)
             browser.quit()
