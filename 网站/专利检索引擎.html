@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<!--
+To change this license header, choose License Headers in Project Properties.
+To change this template file, choose Tools | Templates
+and open the template in the editor.
+-->
+<html>
+<head><meta charset="utf-8">
+    <title>专利搜索引擎</title>
+<!--    <link rel="stylesheet" type="text/css" href="style.css" media="all">-->
+    <style type="text/css">
+        #mydiv {
+            position: absolute;
+            left: 45%;
+            top: 60%;
+            margin-left: -200px;
+            margin-top: -120px;
+        }
+
+        /* .search #keyword {
+            width: 454px;
+            height: 30px;
+            margin-left: -200px;
+            margin-top: -120px;
+            border: 2px solid red;
+            outline: none;
+            font: 14px/30px "microsoft yahei";
+        }
+
+        .search #but {
+            background: red;
+            width: 80px;
+            height: 34px;
+            color: white;
+            border: none;
+            outline: none;
+            font: 14px/34px "microsoft yahei";
+        } */
+
+
+        .mouseOver {
+            background: #708090;
+            color: #FFFAFA;
+        }
+
+        .mouseOut {
+            background: #FFFAFA;
+            color: #000;
+        }
+    </style>
+
+    <style>
+        html,body {
+    font-size: 14px;
+    font-family: "微软雅黑", Helvetica, Tahoma, Arial, sans-serif;
+    color: #000;
+    background-image: url("The-Dark-Knight.png");
+    margin: 0;
+    padding: 0;
+}
+img {
+    border: 0;
+}
+.cf:before,.cf:after {
+    display: table;
+    content: "";
+}
+.cf:after {
+    clear: both;
+}
+.cf {
+    *zoom: 1;
+}
+canvas{
+position: fixed;
+    top: 0px;
+}
+</style>
+<script>
+function showHint(str){
+  var xmlhttp;
+  if (str.length==0)
+  { 
+    document.getElementById("txtHint").innerHTML="";
+    return;
+  }
+  if (window.XMLHttpRequest)
+  {
+    // IE7+, Firefox, Chrome, Opera, Safari 浏览器执行代码
+    xmlhttp=new XMLHttpRequest();
+  }
+  else
+  {
+    // IE6, IE5 浏览器执行代码
+    xmlhttp=new ActiveXObject("Microsoft.XMLHTTP");
+  }
+  xmlhttp.onreadystatechange=function()
+  {
+    if (xmlhttp.readyState==4 && xmlhttp.status==200)
+    {
+        var s=eval("(" +  xmlhttp.responseText.substring(200) + ")");
+        console.log(s);
+        setContent(s);
+     
+    }
+  }
+  xmlhttp.open("GET","index.php?keyword="+str,true);
+  xmlhttp.send();
+}
+ function setContent(contents) {
+            //清空之前的数据
+            clearContent();
+            //设置位置
+            setLocaltion();
+            //首先获得关联数据的长度，以此来确定生成多少个<tr></tr>
+            var size = contents.length;
+            //设置内容
+            for (var i = 0; i < size && i<=10; i++) {
+                var nextNode = contents[i]; //代表json数据的第i个元素
+                var tr = document.createElement("tr");
+                var td = document.createElement("td");
+                td.setAttribute("borde", "0");
+                td.setAttribute("gbcolor", "#FFFAFA");
+                //为td绑定两个样式（鼠标进入和鼠标移出时事件）
+                td.onmouseover = function () {
+                    this.className = 'mouseOver';
+                };
+                td.onmouseout = function () {
+                    this.className = 'mouseOut';
+                };
+                td.onclick = function () {
+                    //这个方法实现的是，当用鼠标点击一个关联数据时，关联数据自动填充到输入框中。
+
+                };
+                td.onmousedown = function () {
+                    //当鼠标点击一个关联数据时，自动在输入框添加数据
+                    document.getElementById("keyword").value = this.innerText;
+
+                };//添加子节点到table；
+                var text = document.createTextNode(nextNode);
+                td.appendChild(text);
+                tr.appendChild(td);
+                document.getElementById("content_table_body").appendChild(tr);
+            }   
+    }
+        function clearContent() {
+            var contentTableBody = document.getElementById("content_table_body");
+            var size = contentTableBody.childNodes.length;
+            //删除时，从下往上删
+            for (var i = size - 1; i >= 0; i--) {
+                //指定删除第i个子节点
+                contentTableBody.removeChild(contentTableBody.childNodes[i]);
+            }
+            //清除关联数据的外边框
+             document.getElementById("popDiv").style.border = "none";
+
+        }
+          function keywordBlur() {
+            clearContent();
+        }
+         function setLocaltion() {
+            //关联信息的显示位置要和输入框一致
+            var content = document.getElementById("keyword");
+            var width = content.offsetWidth; //输入框的长度
+            var left = content["offsetLeft"]; //到左边框的距离
+            var top = content["offsetTop"] + content.offsetHeight; //到顶部的距离(加上输入框本身的高度)
+            //获得显示数据的div
+            var popDiv = document.getElementById("popDiv");
+            popDiv.style.border = "gray 1px solid";
+            popDiv.style.left = left + "px";
+            popDiv.style.top = top + "px";
+            popDiv.style.width = width + "px";
+            document.getElementById("content-table").style.width = width + "px";
+        }
+</script>
+</head>
+<body><canvas width="1293" height="717"></canvas>
+    <h1 style="color:rgb(231, 128, 128); text-align:center">
+        <font size="50">专利搜索引擎</font>
+    </h1>
+    <div id="mydiv">
+        <!-- 输入框(style是输入框的属性) -->
+        <input type="text" placeholder="请输入检索专利名称/专利号" id="keyword" onkeyup="showHint(this.value)" onblur="keywordBlur()" onfocus="showHint(this.value)"
+            style="width: 454px;
+            height: 30px;
+            border: 2px solid red;
+            outline: none;
+            font-size: 22px " />
+        <input type="button" value="search"  class="btn btn-primary" onclick="window.location.href='theway.php?searchword='+document.getElementById('keyword').value" style="background: red;
+        width: 90px;
+        height: 34px;
+        color: white;
+        border: none;
+        outline: none;
+        font-size: 22px" />
+        <!-- <button class="btn_search">搜索</button> -->
+        <!-- 下面是内容展示区域 -->
+        <div id="popDiv">
+            <table id="content-table" bgcolor="#FFFAFA" border="0" cellspacing="0" cellpadding="0">
+                <tbody id="content_table_body">
+                    <!-- 动态查询出来的数据显示在这里-->
+
+                </tbody>
+            </table>
+        </div>
+    </div>
+ <script>
+        /**
+         * 显示粒子效果
+         * Created by Administrator on 2016/6/29.
+         */
+        var canvas = document.querySelector('canvas'),
+            ctx = canvas.getContext('2d')
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        ctx.lineWidth = .3;
+        ctx.strokeStyle = (new Color(150)).style;
+        var mousePosition = {
+            x: 30 * canvas.width / 100,
+            y: 30 * canvas.height / 100
+        };
+        var dots = {
+            nb: 750,
+            distance: 50,
+            d_radius: 100,
+            array: []
+        };
+
+        function colorValue(min) {
+            return Math.floor(Math.random() * 255 + min);
+        }
+
+        function createColorStyle(r, g, b) {
+            return 'rgba(' + r + ',' + g + ',' + b + ', 0.8)';
+        }
+
+        function mixComponents(comp1, weight1, comp2, weight2) {
+            return (comp1 * weight1 + comp2 * weight2) / (weight1 + weight2);
+        }
+
+        function averageColorStyles(dot1, dot2) {
+            var color1 = dot1.color,
+                color2 = dot2.color;
+
+            var r = mixComponents(color1.r, dot1.radius, color2.r, dot2.radius),
+                g = mixComponents(color1.g, dot1.radius, color2.g, dot2.radius),
+                b = mixComponents(color1.b, dot1.radius, color2.b, dot2.radius);
+            return createColorStyle(Math.floor(r), Math.floor(g), Math.floor(b));
+        }
+
+        function Color(min) {
+            min = min || 0;
+            this.r = colorValue(min);
+            this.g = colorValue(min);
+            this.b = colorValue(min);
+            this.style = createColorStyle(this.r, this.g, this.b);
+        }
+
+        function Dot() {
+            this.x = Math.random() * canvas.width;
+            this.y = Math.random() * canvas.height;
+
+            this.vx = -.5 + Math.random();
+            this.vy = -.5 + Math.random();
+
+            this.radius = Math.random() * 2;
+
+            this.color = new Color();
+        }
+
+        Dot.prototype = {
+            draw: function () {
+                ctx.beginPath();
+                ctx.fillStyle = this.color.style;
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2, false);
+                ctx.fill();
+            }
+        };
+
+        function createDots() {
+            for (i = 0; i < dots.nb; i++) {
+                dots.array.push(new Dot());
+            }
+        }
+
+        function moveDots() {
+            for (i = 0; i < dots.nb; i++) {
+
+                var dot = dots.array[i];
+
+                if (dot.y < 0 || dot.y > canvas.height) {
+                    dot.vx = dot.vx;
+                    dot.vy = -dot.vy;
+                } else if (dot.x < 0 || dot.x > canvas.width) {
+                    dot.vx = -dot.vx;
+                    dot.vy = dot.vy;
+                }
+                dot.x += dot.vx;
+                dot.y += dot.vy;
+            }
+        }
+
+        function connectDots() {
+            for (i = 0; i < dots.nb; i++) {
+                for (j = i; j < dots.nb; j++) {
+                    i_dot = dots.array[i];
+                    j_dot = dots.array[j];
+
+                    if ((i_dot.x - j_dot.x) < dots.distance && (i_dot.y - j_dot.y) < dots.distance && (i_dot.x - j_dot.x) >
+                        -dots.distance && (i_dot.y - j_dot.y) > -dots.distance) {
+                        if ((i_dot.x - mousePosition.x) < dots.d_radius && (i_dot.y - mousePosition.y) < dots.d_radius &&
+                            (i_dot.x - mousePosition.x) > -dots.d_radius && (i_dot.y - mousePosition.y) > -dots.d_radius
+                        ) {
+                            ctx.beginPath();
+                            ctx.strokeStyle = averageColorStyles(i_dot, j_dot);
+                            ctx.moveTo(i_dot.x, i_dot.y);
+                            ctx.lineTo(j_dot.x, j_dot.y);
+                            ctx.stroke();
+                            ctx.closePath();
+                        }
+                    }
+                }
+            }
+        }
+
+        function drawDots() {
+            for (i = 0; i < dots.nb; i++) {
+                var dot = dots.array[i];
+                dot.draw();
+            }
+        }
+
+        function animateDots() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            moveDots();
+            connectDots();
+            drawDots();
+            requestAnimationFrame(animateDots);
+        }
+        document.querySelector('canvas').addEventListener('mousemove', function (e) {
+            mousePosition.x = e.pageX;
+            mousePosition.y = e.pageY;
+        })
+
+        document.querySelector('canvas').addEventListener('mouseleave', function (e) {
+            mousePosition.x = canvas.width / 2;
+            mousePosition.y = canvas.height / 2;
+        })
+
+        createDots();
+        requestAnimationFrame(animateDots);
+    </script>
+
+</body>
+</html>
