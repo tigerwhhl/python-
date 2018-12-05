@@ -1,0 +1,98 @@
+import requests
+import base64
+import ruokuai
+import re
+from bs4 import BeautifulSoup
+
+#----------------------------------------------------------------------------------#
+'''专利网注册的账号'''
+strName = 'tiger1575344246'
+strPass = 'Tiger06191027'
+#----------------------------------------------------------------------------------#
+
+
+##构造请求头##
+#----------------------------------------------------------------------------------#
+checkHeader = {
+        "Host": "www.pss-system.gov.cn",
+        "Proxy-Connection": "keep-alive",
+        "Cache-Control": "max-age=0",
+        "Origin": "http://www.pss-system.gov.cn",
+        "Upgrade-Insecure-Requests": "1",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.90 Safari/537.36",
+        "Content-Type": "application/x-www-form-urlencoded",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
+        "Referer": "http://www.pss-system.gov.cn/sipopublicsearch/portal/uiIndex.shtml",
+        "Accept-Encoding": "gzip, deflate",
+        "Accept-Language": "zh-CN,zh;q=0.8"
+    }
+    
+header = {
+        "Accept": "text / html, * / *;q = 0.01",
+        "Accept-Encoding": "gzip, deflate",
+        "Accept-Language": "zh-CN,zh;q=0.8",
+        "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.90 Safari/537.36"
+    }
+    
+baseUrl = 'http://www.pss-system.gov.cn/sipopublicsearch/patentsearch/tableSearch-showTableSearchIndex.shtml'
+checkUrl = 'http://www.pss-system.gov.cn/sipopublicsearch/wee/platform/wee_security_check'
+codeurl = 'http://www.pss-system.gov.cn/sipopublicsearch/portal/login-showPic.shtml'
+#------------------------------------------------------------------------------------#
+
+
+
+#构造网址需要的基本字符串
+#----------------------------------------------------------------------------------#
+findurl='http://www.pss-system.gov.cn/sipopublicsearch/portal/paramRewriter-paramEncode.shtml'
+BASEurl='http://www.pss-system.gov.cn/sipopublicsearch/patentsearch/portal2HomeSearch-portalSearch.shtml?params='
+#----------------------------------------------------------------------------------#
+
+#暂时命名而已
+#----------------------------------------------------------------------------------#
+def login():   
+   #---------- ---登陆请求--------------------------#
+    ##base64编码解码##
+    base64Name = str(base64.b64encode(bytes(strName,encoding='utf-8')), 'utf-8')
+    base64Pass = str(base64.b64encode(bytes(strPass,encoding='utf-8')), 'utf-8')
+   
+    data = {
+        "j_loginsuccess_url": "",
+        "j_validation_code": "",
+        "j_username": base64Name,
+        "j_password": base64Pass
+    }
+   
+    valcode = requests.get(codeurl, headers = header)
+    f = open('valcode.png', 'wb')
+    f.write(valcode.content)
+    f.close()
+    
+    code = input('请输入验证码：')
+    data["j_validation_code"] = str(code)
+    #print( requests.utils.dict_from_cookiejar(valcode.cookies))
+    resp = requests.post(checkUrl, headers = checkHeader, cookies = requests.utils.dict_from_cookiejar(valcode.cookies), data=data)
+    print("登陆成功!")
+    soup = BeautifulSoup(resp.content, 'lxml')
+    
+    
+    
+    #--------------用关键词来构造表单提交请求之后返回参数-----------#
+    data1={
+        "params":"searchExpFromIndex=python@==@searchCondition_scope=@==@searchCondition_type=AI"        
+    }
+    
+    res=requests.post(findurl,data1)
+    soup1=BeautifulSoup(res.content, 'lxml')
+    params_text=soup1.text
+    re_params = r'[0-9A-Z]+'
+    params=re.findall(re_params,params_text)
+    #print(params[0])
+    search_url=BASEurl+params[0]    #应该是这个网址了吧
+    res_search=requests.get(search_url)
+    soup_search = BeautifulSoup(res_search.content, 'lxml')
+    print(soup_search.prettify())
+    
+if __name__ == '__main__':
+    soup=login()
+  
